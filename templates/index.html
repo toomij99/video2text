@@ -1,0 +1,126 @@
+<!-- templates/index.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jupiter Note Video Transcriber</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        .tab {
+            overflow: hidden;
+            border: 1px solid #ccc;
+            background-color: #f1f1f1;
+            border-radius: 5px 5px 0 0;
+        }
+        .tab button {
+            background-color: inherit;
+            float: left;
+            border: none;
+            outline: none;
+            cursor: pointer;
+            padding: 14px 16px;
+            transition: 0.3s;
+            font-size: 17px;
+        }
+        .tab button:hover {
+            background-color: #ddd;
+        }
+        .tab button.active {
+            background-color: #ccc;
+        }
+        .tabcontent {
+            display: none;
+            padding: 20px;
+            border: 1px solid #ccc;
+            border-top: none;
+            border-radius: 0 0 5px 5px;
+        }
+        .visible {
+            display: block;
+        }
+        input[type="text"], input[type="file"] {
+            width: 100%;
+            padding: 12px;
+            margin: 8px 0;
+            display: inline-block;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button[type="submit"] {
+            width: 100%;
+            background-color: #4CAF50;
+            color: white;
+            padding: 14px 20px;
+            margin: 8px 0;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button[type="submit"]:hover {
+            background-color: #45a049;
+        }
+        .error {
+            color: red;
+            font-weight: bold;
+            margin-bottom: 15px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🪐 Jupiter Note Video Transcriber</h1>
+    <p>Upload a video or provide a YouTube URL to transcribe and create notes.</p>
+    
+    {% if error %}
+    <div class="error">{{ error }}</div>
+    {% endif %}
+    
+    <div class="tab">
+        <button class="tablinks active" onclick="openTab(event, 'Youtube')">YouTube URL</button>
+        <button class="tablinks" onclick="openTab(event, 'Upload')">Upload Video</button>
+    </div>
+    
+    <div id="Youtube" class="tabcontent visible">
+        <form action="{{ url_for('process_youtube') }}" method="post">
+            <label for="youtube_url">Enter YouTube URL:</label>
+            <input type="text" id="youtube_url" name="youtube_url" placeholder="https://www.youtube.com/watch?v=...">
+            <button type="submit">Transcribe YouTube Video</button>
+        </form>
+    </div>
+    
+    <div id="Upload" class="tabcontent">
+        <form action="{{ url_for('process_upload') }}" method="post" enctype="multipart/form-data">
+            <label for="video_file">Upload a video file:</label>
+            <input type="file" id="video_file" name="video_file" accept="video/*">
+            <button type="submit">Transcribe Uploaded Video</button>
+        </form>
+    </div>
+    
+    <script>
+        function openTab(evt, tabName) {
+            var i, tabcontent, tablinks;
+            tabcontent = document.getElementsByClassName("tabcontent");
+            for (i = 0; i < tabcontent.length; i++) {
+                tabcontent[i].className = tabcontent[i].className.replace(" visible", "");
+            }
+            tablinks = document.getElementsByClassName("tablinks");
+            for (i = 0; i < tablinks.length; i++) {
+                tablinks[i].className = tablinks[i].className.replace(" active", "");
+            }
+            document.getElementById(tabName).className += " visible";
+            evt.currentTarget.className += " active";
+        }
+    </script>
+</body>
+</html>

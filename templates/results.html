@@ -1,0 +1,72 @@
+<!-- templates/results.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jupiter Notes - Results</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        h1, h2 {
+            color: #333;
+        }
+        .section {
+            margin-bottom: 30px;
+            padding: 20px;
+            background-color: #f9f9f9;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+        }
+        .download-btn {
+            display: inline-block;
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 15px;
+            text-decoration: none;
+            border-radius: 4px;
+            margin-top: 20px;
+        }
+        .download-btn:hover {
+            background-color: #45a049;
+        }
+        .back-btn {
+            display: inline-block;
+            background-color: #f44336;
+            color: white;
+            padding: 10px 15px;
+            text-decoration: none;
+            border-radius: 4px;
+            margin-right: 10px;
+        }
+        .back-btn:hover {
+            background-color: #d32f2f;
+        }
+        .notes {
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <h1>🪐 Jupiter Note Transcription Results</h1>
+    <h2>{{ video_title }}</h2>
+    
+    <div class="section">
+        <h3>Transcription:</h3>
+        <p>{{ transcription }}</p>
+    </div>
+    
+    <div class="section">
+        <h3>Jupiter Notes:</h3>
+        <div class="notes">{{ notes | safe }}</div>
+    </div>
+    
+    <a href="{{ url_for('download_notes', trans_id=trans_id) }}" class="download-btn">Download Jupiter Notes</a>
+    <a href="{{ url_for('index') }}" class="back-btn">Process Another Video</a>
+</body>
+</html>
