@@ -76,6 +76,39 @@
             font-weight: bold;
             margin-bottom: 15px;
         }
+        .progress-container {
+            display: none;
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+        }
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background-color: #f0f0f0;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        .progress-bar-fill {
+            height: 100%;
+            background-color: #4CAF50;
+            width: 0%;
+            transition: width 0.5s ease-in-out;
+        }
+        .progress-status {
+            margin-top: 10px;
+            text-align: center;
+            color: #666;
+        }
+        .processing {
+            display: none;
+            text-align: center;
+            margin-top: 20px;
+            font-weight: bold;
+            color: #666;
+        }
     </style>
 </head>
 <body>
@@ -92,7 +125,7 @@
     </div>
     
     <div id="Youtube" class="tabcontent visible">
-        <form action="{{ url_for('process_youtube') }}" method="post">
+        <form action="{{ url_for('process_youtube') }}" method="post" id="youtube-form">
             <label for="youtube_url">Enter YouTube URL:</label>
             <input type="text" id="youtube_url" name="youtube_url" placeholder="https://www.youtube.com/watch?v=...">
             <button type="submit">Transcribe YouTube Video</button>
@@ -100,11 +133,22 @@
     </div>
     
     <div id="Upload" class="tabcontent">
-        <form action="{{ url_for('process_upload') }}" method="post" enctype="multipart/form-data">
-            <label for="video_file">Upload a video file:</label>
-            <input type="file" id="video_file" name="video_file" accept="video/*">
-            <button type="submit">Transcribe Uploaded Video</button>
+        <form action="{{ url_for('process_upload') }}" method="post" enctype="multipart/form-data" id="upload-form">
+            <label for="video_file">Upload a video or audio file:</label>
+            <input type="file" id="video_file" name="video_file" accept="video/*,audio/*,.m4a">
+            <button type="submit">Transcribe File</button>
         </form>
+    </div>
+
+    <div class="progress-container" id="progress-container">
+        <div class="progress-bar">
+            <div class="progress-bar-fill" id="progress-bar-fill"></div>
+        </div>
+        <div class="progress-status" id="progress-status">Starting transcription...</div>
+    </div>
+
+    <div class="processing" id="processing">
+        Processing your file... This may take a few minutes.
     </div>
     
     <script>
@@ -121,6 +165,140 @@
             document.getElementById(tabName).className += " visible";
             evt.currentTarget.className += " active";
         }
+
+        function showProgress() {
+            document.getElementById('progress-container').style.display = 'block';
+            document.getElementById('processing').style.display = 'block';
+        }
+
+        function updateProgress(taskId) {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+            fetch(`/progress/${taskId}`, {
+                signal: controller.signal,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => {
+                clearTimeout(timeoutId);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                const progressBar = document.getElementById('progress-bar-fill');
+                const statusText = document.getElementById('progress-status');
+                
+                progressBar.style.width = `${data.progress}%`;
+                statusText.textContent = data.status;
+
+                if (data.progress < 100 && !data.error) {
+                    setTimeout(() => updateProgress(taskId), 1000);
+                } else if (data.error) {
+                    statusText.textContent = `Error: ${data.error}`;
+                    statusText.style.color = 'red';
+                } else if (data.redirect_url) {
+                    window.location.href = data.redirect_url;
+                }
+            })
+            .catch(error => {
+                clearTimeout(timeoutId);
+                const statusText = document.getElementById('progress-status');
+                if (error.name === 'AbortError') {
+                    setTimeout(() => updateProgress(taskId), 2000);
+                } else {
+                    statusText.textContent = `Error checking progress: ${error.message}`;
+                    statusText.style.color = 'red';
+                }
+            });
+        }
+
+        document.getElementById('youtube-form').onsubmit = function(e) {
+            e.preventDefault();
+            showProgress();
+            const formData = new FormData(this);
+            
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 30000);
+            
+            fetch(this.action, {
+                method: 'POST',
+                body: formData,
+                signal: controller.signal,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => {
+                clearTimeout(timeoutId);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.task_id) {
+                    updateProgress(data.task_id);
+                } else if (data.error) {
+                    throw new Error(data.error);
+                }
+            })
+            .catch(error => {
+                clearTimeout(timeoutId);
+                const statusText = document.getElementById('progress-status');
+                if (error.name === 'AbortError') {
+                    statusText.textContent = 'Request timeout. Please try again.';
+                } else {
+                    statusText.textContent = `Error: ${error.message}`;
+                }
+                statusText.style.color = 'red';
+            });
+        };
+
+        document.getElementById('upload-form').onsubmit = function(e) {
+            e.preventDefault();
+            showProgress();
+            const formData = new FormData(this);
+            
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 30000);
+            
+            fetch(this.action, {
+                method: 'POST',
+                body: formData,
+                signal: controller.signal,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => {
+                clearTimeout(timeoutId);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.task_id) {
+                    updateProgress(data.task_id);
+                } else if (data.error) {
+                    throw new Error(data.error);
+                }
+            })
+            .catch(error => {
+                clearTimeout(timeoutId);
+                const statusText = document.getElementById('progress-status');
+                if (error.name === 'AbortError') {
+                    statusText.textContent = 'Upload timeout. Please try again with a smaller file or use the YouTube URL option.';
+                } else {
+                    statusText.textContent = `Error: ${error.message}`;
+                }
+                statusText.style.color = 'red';
+            });
+        };
     </script>
 </body>
 </html>

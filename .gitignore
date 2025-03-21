@@ -6,6 +6,7 @@ uploads/
 *.avi
 *.mov
 *.mkv
+*.m4a
 *.md
 !README.md
 

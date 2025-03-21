@@ -1,6 +1,6 @@
 # 🪐 Jupiter Notes
 
-Jupiter Notes is a web application that automatically transcribes videos (both YouTube videos and uploaded files) and generates structured notes from the transcription. It uses OpenAI's Whisper model for accurate speech-to-text conversion and provides an easy way to download the generated notes in Markdown format.
+Jupiter Notes is a web application that automatically transcribes videos and audio files (both YouTube content and uploaded files) and generates structured notes from the transcription. It uses OpenAI's Whisper model for accurate speech-to-text conversion and provides an easy way to download the generated notes in Markdown format.
 
 ## Features
 
@@ -60,7 +60,9 @@ http://localhost:5000
 ## Technical Details
 
 - **Maximum Upload Size**: 650MB
-- **Supported Video Formats**: All common video formats (mp4, avi, mov, etc.)
+- **Supported Formats**: 
+  - Video: MP4, AVI, MOV, MKV
+  - Audio: MP3, WAV, M4A
 - **Output Format**: Markdown (.md)
 - **Transcription Model**: OpenAI Whisper (base model)
 
