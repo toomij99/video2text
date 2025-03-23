@@ -9,15 +9,25 @@ from werkzeug.utils import secure_filename
 import threading
 import time
 from werkzeug.exceptions import RequestTimeout
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'uploads'
 app.config['MAX_CONTENT_LENGTH'] = 650 * 1024 * 1024  # 650MB max upload
 app.config['UPLOAD_TIMEOUT'] = 300  # 5 minutes timeout for uploads
 app.secret_key = os.urandom(24)
+app.debug = True  # Enable debug mode
 
 # Create uploads folder if it doesn't exist
-os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+try:
+    os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+    logger.info("Upload folder created/verified successfully")
+except Exception as e:
+    logger.error(f"Error creating upload folder: {e}")
 
 # Storage for transcriptions and progress
 transcription_storage = {}
@@ -70,8 +80,8 @@ def process_file_with_progress(file_path, task_id, video_title):
         }
         
         update_progress(task_id, 100, 'Complete!')
-        with app.app_context():
-            progress_storage[task_id]['redirect_url'] = url_for('show_results', task_id=task_id)
+        # Instead of generating URL, just indicate completion
+        progress_storage[task_id]['completed'] = True
         
     except Exception as e:
         progress_storage[task_id]['error'] = str(e)
@@ -79,7 +89,12 @@ def process_file_with_progress(file_path, task_id, video_title):
 
 @app.route('/')
 def index():
-    return render_template('index.html')
+    try:
+        logger.debug("Rendering index page")
+        return render_template('index.html')
+    except Exception as e:
+        logger.error(f"Error rendering index page: {e}")
+        return f"Error: {str(e)}", 500
 
 @app.route('/process_youtube', methods=['POST'])
 def process_youtube():
@@ -92,32 +107,31 @@ def process_youtube():
         update_progress(task_id, 0, 'Starting YouTube download...')
         
         def process():
-            with app.app_context():
-                try:
-                    temp_dir = tempfile.mkdtemp()
-                    
-                    update_progress(task_id, 20, 'Downloading YouTube audio...')
-                    ydl_opts = {
-                        'format': 'bestaudio/best',
-                        'outtmpl': os.path.join(temp_dir, '%(title)s.%(ext)s'),
-                        'quiet': True,
-                        'no_warnings': True,
-                    }
-                    
-                    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                        info = ydl.extract_info(youtube_url, download=True)
-                        video_title = info.get('title', 'Unknown Title')
-                        downloaded_file = ydl.prepare_filename(info)
-                    
-                    update_progress(task_id, 40, 'Processing audio...')
-                    process_file_with_progress(downloaded_file, task_id, video_title)
-                    
-                    # Clean up
-                    shutil.rmtree(temp_dir)
-                    
-                except Exception as e:
-                    progress_storage[task_id]['error'] = str(e)
-                    progress_storage[task_id]['progress'] = 100
+            try:
+                temp_dir = tempfile.mkdtemp()
+                
+                update_progress(task_id, 20, 'Downloading YouTube audio...')
+                ydl_opts = {
+                    'format': 'bestaudio/best',
+                    'outtmpl': os.path.join(temp_dir, '%(title)s.%(ext)s'),
+                    'quiet': True,
+                    'no_warnings': True,
+                }
+                
+                with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                    info = ydl.extract_info(youtube_url, download=True)
+                    video_title = info.get('title', 'Unknown Title')
+                    downloaded_file = ydl.prepare_filename(info)
+                
+                update_progress(task_id, 40, 'Processing audio...')
+                process_file_with_progress(downloaded_file, task_id, video_title)
+                
+                # Clean up
+                shutil.rmtree(temp_dir)
+                
+            except Exception as e:
+                progress_storage[task_id]['error'] = str(e)
+                progress_storage[task_id]['progress'] = 100
         
         thread = threading.Thread(target=process)
         thread.start()
@@ -145,17 +159,16 @@ def process_upload():
         file.save(filepath)
         
         def process():
-            with app.app_context():
-                try:
-                    update_progress(task_id, 20, 'Processing uploaded file...')
-                    process_file_with_progress(filepath, task_id, filename)
-                    
-                    # Clean up
-                    os.remove(filepath)
-                    
-                except Exception as e:
-                    progress_storage[task_id]['error'] = str(e)
-                    progress_storage[task_id]['progress'] = 100
+            try:
+                update_progress(task_id, 20, 'Processing uploaded file...')
+                process_file_with_progress(filepath, task_id, filename)
+                
+                # Clean up
+                os.remove(filepath)
+                
+            except Exception as e:
+                progress_storage[task_id]['error'] = str(e)
+                progress_storage[task_id]['progress'] = 100
         
         thread = threading.Thread(target=process)
         thread.start()
@@ -169,7 +182,14 @@ def process_upload():
 def get_progress(task_id):
     if task_id not in progress_storage:
         return jsonify({'error': 'Task not found'})
-    return jsonify(progress_storage[task_id])
+    
+    progress_data = progress_storage[task_id].copy()
+    
+    # If the task is complete, include the results URL
+    if progress_data.get('progress') == 100 and not progress_data.get('error'):
+        progress_data['redirect_url'] = f'/results/{task_id}'
+    
+    return jsonify(progress_data)
 
 @app.route('/results/<task_id>')
 def show_results(task_id):
@@ -216,5 +236,15 @@ def download_notes(trans_id):
     
     return return_file
 
+@app.route('/test')
+def test():
+    try:
+        logger.debug("Rendering test page")
+        return render_template('test.html')
+    except Exception as e:
+        logger.error(f"Error rendering test page: {e}")
+        return f"Error: {str(e)}", 500
+
 if __name__ == "__main__":
-    app.run(debug=True)
+    logger.info("Starting Flask application")
+    app.run(debug=True, use_reloader=False)
